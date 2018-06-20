@@ -1,0 +1,6 @@
+.vscode/
+*.wav
+*.mat
+egs.py
+*.log
+__pycache__/
