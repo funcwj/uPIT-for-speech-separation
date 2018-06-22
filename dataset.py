@@ -12,7 +12,7 @@ import torch as th
 
 from torch.nn.utils.rnn import pack_sequence, pad_sequence
 
-from utils import parse_scps, stft, apply_cmvn
+from utils import parse_scps, stft, apply_cmvn, EPSILON
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -156,6 +156,7 @@ class BatchSampler(object):
 class DataLoader(object):
     """
         Multi/Per utterance loader for permutation invariant training
+        Now this is for AM(Amplitude Mask)
     """
 
     def __init__(self,
@@ -190,7 +191,7 @@ class DataLoader(object):
             targets_specs_list: list of non-log spectrogram for each target speakers
         """
         # apply_log and cmvn, for nnet input
-        log_spectra = np.log(mixture_specs)
+        log_spectra = np.log(np.maximum(mixture_specs, EPSILON))
         if self.mvn_dict:
             log_spectra = apply_cmvn(log_spectra, self.mvn_dict)
 

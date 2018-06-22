@@ -11,6 +11,7 @@ import librosa as audio_lib
 import numpy as np
 
 MAX_INT16 = np.iinfo(np.int16).max
+EPSILON = np.finfo(np.float32).eps
 
 config_keys = [
     "trainer", "model", "spectrogram_reader", "dataloader", "train_scp_conf",
@@ -52,7 +53,7 @@ def stft(file,
     if apply_pow:
         stft_mat = np.power(stft_mat, 2)
     if apply_log:
-        stft_mat = np.log(stft_mat)
+        stft_mat = np.log(np.maximum(stft_mat, EPSILON))
     if transpose:
         stft_mat = np.transpose(stft_mat)
     return stft_mat if not return_samps else (samps, stft_mat)

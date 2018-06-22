@@ -15,6 +15,6 @@ echo "start training --> $checkpoint ..."
 
 cp $conf $checkpoint/train.yaml
 
-CUDA_VISIBLE_DEVICES=0 python ./run_pit.py --config $conf --num-epoches 200 > $checkpoint/train.log 2>&1 
+CUDA_VISIBLE_DEVICES=0 python ./run_pit.py --config $conf --num-epoches 50 > $checkpoint/train.log 2>&1 
 
 echo "done"

@@ -85,6 +85,6 @@ if __name__ == '__main__':
         type=int,
         default=20,
         dest="num_epoches",
-        help="Number of epoches to train dcnet")
+        help="Number of epoches to train")
     args = parser.parse_args()
     train(args)
