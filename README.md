@@ -2,18 +2,20 @@
 
 Speech separation with utterance-level (Permutation Invariant Training)PIT
 
-### requirements
+### Requirements
 
 see [requirements.txt](requirements.txt)
 
 ### Usage
 
-1. training
+1. Configure experiments in .yaml files
+
+2. Training:
     ```shell
     ./run_pit.py --config $conf --num-epoches 50 > $checkpoint/train.log 2>&1 &
     ```
 
-2. inference
+3. Inference:
     ```
     ./separate.py --dump-dir cache $mdl_dir/train.yaml $mdl_dir/epoch.40.pkl egs.scp
     ```
@@ -23,6 +25,8 @@ see [requirements.txt](requirements.txt)
 | Configure | Mask | Epoch |  FM   |  FF  |  MM  | FF/MM | AVG  |
 | :-------: | :--: | :---: | :---: | :--: | :--: | :---: | :--: |
 | [config-1](conf/1.config.yaml) |  AM  |  40   | 10.17 | 6.38 | 7.05 |  6.72  | 8.54 |
+| [config-2](conf/2.config.yaml) |  AM  |  36   | 9.75  | 5.87 | 6.43 |  6.15  | 8.04 |
+
 
 ### Reference
 

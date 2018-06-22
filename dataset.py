@@ -157,6 +157,7 @@ class DataLoader(object):
     """
         Multi/Per utterance loader for permutation invariant training
         Now this is for AM(Amplitude Mask)
+        TODO: Support both AM and PAM training
     """
 
     def __init__(self,
@@ -165,6 +166,8 @@ class DataLoader(object):
                  batch_size=16,
                  drop_last=False,
                  mvn_dict=None):
+        if batch_size == 1:
+            raise ValueError("Now do not support perutt training")
         self.dataset = dataset
         self.mvn_dict = mvn_dict
         self.batch_size = batch_size
@@ -229,12 +232,6 @@ class DataLoader(object):
                 for s in range(num_spks)
             ]
             return input_sizes, input_feats, spectrogram, target_list
-
-        elif type(index) is int:
-            s, t = self.dataset[index]
-            data_dict = self._transform(s, t)
-            # same order as batch index
-            return [data_dict[key] for key in data_dict]
         else:
             raise ValueError("Unsupported index type({})".format(type(index)))
 

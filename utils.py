@@ -137,6 +137,9 @@ def parse_yaml(yaml_conf):
     for key in config_keys:
         if key not in config_dict:
             raise KeyError("Missing {} configs in yaml".format(key))
+    batch_size = config_dict["dataloader"]["batch_size"]
+    if batch_size <= 0:
+        raise ValueError("Invalid batch_size: {}".format(batch_size))
     num_frames = config_dict["spectrogram_reader"]["frame_length"]
     num_bins = nfft(num_frames) // 2 + 1
     if len(config_dict["train_scp_conf"]) != len(
