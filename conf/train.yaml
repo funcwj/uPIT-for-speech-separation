@@ -28,7 +28,8 @@ spectrogram_reader:
   window: "hann"
   transpose: true
   # NOTE: do not apply log here
-  apply_log: false
+  # false => produce psm
+  # true  => produce irm
   apply_abs: true
 
 train_scp_conf:

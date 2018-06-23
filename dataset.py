@@ -66,6 +66,7 @@ class Dataset(object):
         self.mixture_reader = mixture_reader
         self.keys_list = mixture_reader.wave_keys
         self.targets_reader_list = targets_reader_list
+        self.num_spks = len(targets_reader_list)
 
     def __len__(self):
         return len(self.keys_list)
@@ -155,9 +156,8 @@ class BatchSampler(object):
 
 class DataLoader(object):
     """
-        Multi/Per utterance loader for permutation invariant training
-        Now this is for AM(Amplitude Mask)
-        TODO: Support both AM and PAM training
+        Multi utterance loader for permutation invariant training
+        Support both AM and PSM
     """
 
     def __init__(self,
@@ -173,6 +173,7 @@ class DataLoader(object):
         self.batch_size = batch_size
         self.drop_last = drop_last
         self.shuffle = shuffle
+        self.num_spks = dataset.num_spks
         if mvn_dict:
             logger.info("Using cmvn dictionary from {}".format(mvn_dict))
             with open(mvn_dict, "rb") as f:
@@ -188,52 +189,113 @@ class DataLoader(object):
     def _transform(self, mixture_specs, targets_specs_list):
         """
         Transform original spectrogram
+            If mixture_specs is a complex object, it means PAM will be used for training
+            It can be configured in .yaml, egs: apply_abs=false to produce complex results
+            If mixture_specs is real, we will using AM(ratio mask)
 
         Arguments:
-            mixture_specs: non-log spectrogram, it's needed in loss computation
-            targets_specs_list: list of non-log spectrogram for each target speakers
+            mixture_specs: non-log complex/real spectrogram
+            targets_specs_list: list of non-log complex/real spectrogram for each target speakers
+        Returns:
+            python dictionary with four attributes:
+            num_frames: length of current utterance
+            feature: input feature for networks, egs: log spectrogram + cmvn
+            source_attr: a dictionary with at most 2 keys: spectrogram and phase(for PSM), each contains a tensor
+            target_attr: same keys like source_attr, each keys correspond to a tensor list
         """
+
         # apply_log and cmvn, for nnet input
-        log_spectra = np.log(np.maximum(mixture_specs, EPSILON))
+        # NOTE: mixture_specs may be complex or real
+        log_spectra = np.log(
+            np.maximum(
+                np.abs(mixture_specs)
+                if np.iscomplexobj(mixture_specs) else mixture_specs, EPSILON))
+
         if self.mvn_dict:
             log_spectra = apply_cmvn(log_spectra, self.mvn_dict)
 
+        # using dict to pack infomation needed in loss
+        source_attr = {}
+        target_attr = {}
+
+        if np.iscomplexobj(mixture_specs):
+            source_attr["spectrogram"] = th.tensor(
+                np.abs(mixture_specs), dtype=th.float32)
+            target_attr["spectrogram"] = [
+                th.tensor(np.abs(t), dtype=th.float32)
+                for t in targets_specs_list
+            ]
+            source_attr["phase"] = th.tensor(
+                np.angle(mixture_specs), dtype=th.float32)
+            target_attr["phase"] = [
+                th.tensor(np.angle(t), dtype=th.float32)
+                for t in targets_specs_list
+            ]
+        else:
+            source_attr["spectrogram"] = th.tensor(
+                mixture_specs, dtype=th.float32)
+            target_attr["spectrogram"] = [
+                th.tensor(t, dtype=th.float32) for t in targets_specs_list
+            ]
+
         return {
-            "num_frames":
-            mixture_specs.shape[0],
-            "input_feats":
-            th.tensor(log_spectra, dtype=th.float32),
-            "spectrogram":
-            th.tensor(mixture_specs, dtype=th.float32),
-            "target_list":
-            [th.tensor(t, dtype=th.float32) for t in targets_specs_list]
+            "num_frames": mixture_specs.shape[0],
+            "feature": th.tensor(log_spectra, dtype=th.float32),
+            "source_attr": source_attr,
+            "target_attr": target_attr
         }
 
     def _process(self, index):
+        """
+        Transform utterance index into a minbatch
+
+        Arguments:
+            index: a list type
+
+        Returns:
+            input_sizes: a tensor correspond to utterance length
+            input_feats: packed sequence to feed networks
+            source_attr/target_attr: dictionary contains spectrogram/phase needed in loss computation
+        """
+        if type(index) is not list:
+            raise ValueError("Unsupported index type({})".format(type(index)))
+
         def prepare_target(dict_list, index, key):
             return pad_sequence(
-                [d[key][index] for d in dict_list], batch_first=True)
+                [d["target_attr"][key][index] for d in dict_list],
+                batch_first=True)
 
-        if type(index) is list:
-            dict_list = sorted(
-                [self._transform(s, t) for s, t in self.dataset[index]],
-                key=lambda x: x["num_frames"],
-                reverse=True)
-            input_feats = pack_sequence([d["input_feats"] for d in dict_list])
+        # sorted by utterance
+        dict_list = sorted(
+            [self._transform(s, t) for s, t in self.dataset[index]],
+            key=lambda x: x["num_frames"],
+            reverse=True)
+        # pack tensor for network input
+        input_feats = pack_sequence([d["feature"] for d in dict_list])
+        input_sizes = th.tensor(
+            [d["num_frames"] for d in dict_list], dtype=th.float32)
 
-            spectrogram = pad_sequence(
-                [d["spectrogram"] for d in dict_list], batch_first=True)
-            input_sizes = th.tensor(
-                [d["num_frames"] for d in dict_list], dtype=th.float32)
+        source_attr = {}
+        target_attr = {}
 
-            num_spks = len(dict_list[0]["target_list"])
-            target_list = [
-                prepare_target(dict_list, s, "target_list")
-                for s in range(num_spks)
+        source_attr["spectrogram"] = pad_sequence(
+            [d["source_attr"]["spectrogram"] for d in dict_list],
+            batch_first=True)
+        target_attr["spectrogram"] = [
+            prepare_target(dict_list, s, "spectrogram")
+            for s in range(self.num_spks)
+        ]
+
+        if "phase" in dict_list[0]:
+            source_attr["phase"] = pad_sequence(
+                [d["source_attr"]["phase"] for d in dict_list],
+                batch_first=True)
+            target_attr["phase"] = [
+                prepare_target(dict_list, s, "phase")
+                for s in range(self.num_spks)
             ]
-            return input_sizes, input_feats, spectrogram, target_list
-        else:
-            raise ValueError("Unsupported index type({})".format(type(index)))
+
+        return input_sizes, input_feats, source_attr, target_attr
 
     def __iter__(self):
         sampler = BatchSampler(

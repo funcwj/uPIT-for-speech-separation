@@ -38,6 +38,8 @@ def train(args):
     loader_conf = config_dict["dataloader"]
     dcnnet_conf = config_dict["model"]
 
+    logger.info("Training with {}".format("IRM" if reader_conf["apply_abs"]
+                                        else "PSM"))
     batch_size = loader_conf["batch_size"]
     logger.info(
         "Training in {}".format("per utterance" if batch_size == 1 else

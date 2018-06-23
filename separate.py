@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # coding=utf-8
 # wujian@2018
+"""
+Using speaker mask produced by neural networks to separate single channel speech
+"""
 
 import argparse
 import os
@@ -21,7 +24,7 @@ class Separator(object):
                 "Could not find state file {}".format(state_dict))
         self.nnet = nnet
 
-        self.location = "cuda" if args.cuda else "cpu"
+        self.location = None if args.cuda else "cpu"
         self.nnet.load_state_dict(
             th.load(state_dict, map_location=self.location))
         self.nnet.eval()

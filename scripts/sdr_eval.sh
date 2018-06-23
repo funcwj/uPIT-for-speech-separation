@@ -44,9 +44,10 @@ if ($2 == "FM" || $2 == "MF") {
   nFF += 1;
 }
 } END {
+  printf("FM sdr/num-utts = %.2f/%d\n", FM / nFM, nFM);
   printf("FF sdr/num-utts = %.2f/%d\n", FF / nFF, nFF);
   printf("MM sdr/num-utts = %.2f/%d\n", MM / nMM, nMM);
-  printf("FM sdr/num-utts = %.2f/%d\n", FM / nFM, nFM);
+  printf("SG sdr/num-utts = %.2f/%d\n", (MM + FF) / (nMM + nFF), nMM + nFF);
   printf("-- sdr/num-utts = %.2f/%d\n", (FF + FM + MM) / (nFF + nMM + nFM), nFF + nMM + nFM);
 }'
 

@@ -19,12 +19,15 @@ def create_optimizer(optimizer, params, **kwargs):
     supported_optimizer = {
         'sgd': th.optim.SGD,  # momentum, weight_decay, lr
         'rmsprop': th.optim.RMSprop,  # momentum, weight_decay, lr
-        'adam': th.optim.Adam  # weight_decay, lr
+        'adam': th.optim.Adam,  # weight_decay, lr
+        'adadelta': th.optim.Adadelta,  # weight_decay, lr
+        'adagrad': th.optim.Adagrad,  # lr, lr_decay, weight_decay
+        'adamax': th.optim.Adamax  # lr, weight_decay
         # ...
     }
     if optimizer not in supported_optimizer:
         raise ValueError('Now only support optimizer {}'.format(optimizer))
-    if optimizer == 'adam':
+    if optimizer != 'sgd' and optimizer != 'rmsprop':
         del kwargs['momentum']
     opt = supported_optimizer[optimizer](params, **kwargs)
     logger.info('Create optimizer {}: {}'.format(optimizer, kwargs))
@@ -79,7 +82,7 @@ class PITrainer(object):
         self.nnet.train()
         logger.info("Training...")
         tot_loss = num_batch = 0
-        for input_sizes, nnet_input, spectrogram, target_list in dataset:
+        for input_sizes, nnet_input, source_attr, target_attr in dataset:
             num_batch += 1
             nnet_input = packed_sequence_cuda(nnet_input) if isinstance(
                 nnet_input, PackedSequence) else nnet_input.to(device)
@@ -87,8 +90,8 @@ class PITrainer(object):
             self.optimizer.zero_grad()
 
             masks = self.nnet(nnet_input)
-            cur_loss = self.permutate_loss(masks, input_sizes, spectrogram,
-                                           target_list)
+            cur_loss = self.permutate_loss(masks, input_sizes, source_attr,
+                                           target_attr)
             tot_loss += cur_loss.item()
 
             cur_loss.backward()
@@ -105,13 +108,13 @@ class PITrainer(object):
         tot_loss = num_batch = 0
         # do not need to keep gradient
         with th.no_grad():
-            for input_sizes, nnet_input, spectrogram, target_list in dataset:
+            for input_sizes, nnet_input, source_attr, target_attr in dataset:
                 num_batch += 1
                 nnet_input = packed_sequence_cuda(nnet_input) if isinstance(
                     nnet_input, PackedSequence) else nnet_input.to(device)
                 masks = self.nnet(nnet_input)
-                cur_loss = self.permutate_loss(masks, input_sizes, spectrogram,
-                                               target_list)
+                cur_loss = self.permutate_loss(masks, input_sizes, source_attr,
+                                               target_attr)
                 tot_loss += cur_loss.item()
 
         return tot_loss / num_batch, num_batch
@@ -140,28 +143,45 @@ class PITrainer(object):
             th.save(self.nnet.state_dict(), save_path)
         logger.info("Training for {} epoches done!".format(num_epoches))
 
-    def permutate_loss(self, masks, input_sizes, spectrogram, target_list):
+    def permutate_loss(self, masks, input_sizes, source_attr, target_attr):
         """
             Arguments:
                 masks: tensor list on device
                 input_sizes: 1D tensor on cpu
-                spectrogram: 2D tensor on cpu
-                target_list: tensor list on cpu
+                source_attr: python dict: {
+                    "spectrogram": tensor,
+                    "phase": tensor, only for psm
+                }
+                target_attr: python dict: {
+                    "spectrogram": [tensor...],
+                    "phase": [tensor...], only for psm
+                }
         """
-        target_list = [t.to(device) for t in target_list]
         input_sizes = input_sizes.to(device)
-        spectrogram = spectrogram.to(device)
+        mixture_spect = source_attr["spectrogram"].to(device)
+        targets_spect = [t.to(device) for t in target_attr["spectrogram"]]
 
-        assert (len(masks) == len(target_list))
+        if self.num_spks != len(targets_spect):
+            raise ValueError(
+                "Number targets do not match known speakers: {} vs {}".format(
+                    self.num_spks, len(targets_spect)))
+
+        is_loss_with_psm = "phase" in source_attr
+        if is_loss_with_psm:
+            mixture_phase = source_attr["phase"].to(device)
+            targets_phase = [t.to(device) for t in target_attr["phase"]]
 
         def loss(permute):
             loss_for_permute = []
             for s, t in enumerate(permute):
+                refer_spect = targets_spect[t] * th.cos(
+                    mixture_phase -
+                    targets_phase[t]) if is_loss_with_psm else targets_spect[t]
                 # N x T x F => N x 1
                 utt_loss = th.sum(
                     th.sum(
-                        th.pow(masks[s] * spectrogram - target_list[t], 2),
-                        -1), -1)
+                        th.pow(masks[s] * mixture_spect - refer_spect, 2), -1),
+                    -1)
                 loss_for_permute.append(utt_loss)
             loss_perutt = sum(loss_for_permute) / input_sizes
             return loss_perutt

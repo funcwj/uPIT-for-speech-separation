@@ -1,6 +1,6 @@
 ## Speech Separation with uPIT
 
-Speech separation with utterance-level (Permutation Invariant Training)PIT
+Speech separation with utterance-level PIT(Permutation Invariant Training)
 
 ### Requirements
 
@@ -8,14 +8,16 @@ see [requirements.txt](requirements.txt)
 
 ### Usage
 
-1. Configure experiments in .yaml files
+1. Generate dataset using [create-speaker-mixtures.zip](http://www.merl.com/demos/deep-clustering/create-speaker-mixtures.zip)
 
-2. Training:
+2. Prepare cmvn, .scp and configure experiments in .yaml files
+
+3. Training:
     ```shell
     ./run_pit.py --config $conf --num-epoches 50 > $checkpoint/train.log 2>&1 &
     ```
 
-3. Inference:
+4. Inference:
     ```
     ./separate.py --dump-dir cache $mdl_dir/train.yaml $mdl_dir/epoch.40.pkl egs.scp
     ```
@@ -24,8 +26,11 @@ see [requirements.txt](requirements.txt)
 
 | Configure | Mask | Epoch |  FM   |  FF  |  MM  | FF/MM | AVG  |
 | :-------: | :--: | :---: | :---: | :--: | :--: | :---: | :--: |
-| [config-1](conf/1.config.yaml) |  AM  |  40   | 10.17 | 6.38 | 7.05 |  6.72  | 8.54 |
-| [config-2](conf/2.config.yaml) |  AM  |  36   | 9.75  | 5.87 | 6.43 |  6.15  | 8.04 |
+| [config-1](conf/1.config.yaml) |  AM-ReLU    |  63   | 10.38 |  6.64 |  7.31 | 6.98  | 8.78  |
+| [config-2](conf/2.config.yaml) |  AM-sigmoid |  50   | 9.95  |  5.99 |  6.72 | 6.35  | 8.26  |
+|             -                  |  AM-oracle  |   -   | 12.49 | 12.73 | 11.58 | 11.88 | 12.19 |
+|             -                  |  IRM-oracle |   -   | 12.86 | 13.14 | 11.96 | 12.27 | 12.57 |
+|             -                  |  PSM-oracle |   -   | 15.79 | 16.03 | 14.90 | 15.20 | 15.50 |
 
 
 ### Reference
