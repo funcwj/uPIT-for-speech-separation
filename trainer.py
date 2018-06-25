@@ -145,17 +145,17 @@ class PITrainer(object):
 
     def permutate_loss(self, masks, input_sizes, source_attr, target_attr):
         """
-            Arguments:
-                masks: tensor list on device
-                input_sizes: 1D tensor on cpu
-                source_attr: python dict: {
-                    "spectrogram": tensor,
-                    "phase": tensor, only for psm
-                }
-                target_attr: python dict: {
-                    "spectrogram": [tensor...],
-                    "phase": [tensor...], only for psm
-                }
+        Arguments:
+            masks: tensor list on device
+            input_sizes: 1D tensor on cpu
+            source_attr: python dict: {
+                "spectrogram": tensor,
+                "phase": tensor, only for psm
+            }
+            target_attr: python dict: {
+                "spectrogram": [tensor...],
+                "phase": [tensor...], only for psm
+            }
         """
         input_sizes = input_sizes.to(device)
         mixture_spect = source_attr["spectrogram"].to(device)

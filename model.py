@@ -28,7 +28,7 @@ class PITNet(th.nn.Module):
             batch_first=True,
             dropout=dropout,
             bidirectional=bidirectional)
-        self.drops = th.nn.Dropout(p=dropout)
+        # self.drops = th.nn.Dropout(p=dropout)
         self.linear = th.nn.ModuleList([
             th.nn.Linear(hidden_size * 2
                          if bidirectional else hidden_size, num_bins)
@@ -51,7 +51,7 @@ class PITNet(th.nn.Module):
         # x: N x T x D
         if is_packed:
             x, _ = pad_packed_sequence(x, batch_first=True)
-        x = self.drops(x)
+        # x = self.drops(x)
         m = []
         for linear in self.linear:
             y = linear(x)
