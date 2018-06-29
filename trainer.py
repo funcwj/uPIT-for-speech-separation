@@ -6,6 +6,7 @@ import os
 import time
 
 import torch as th
+import torch.nn.functional as F
 
 from itertools import permutations
 from dataset import logger
@@ -53,7 +54,8 @@ class PITrainer(object):
                  clip_norm=None,
                  min_lr=0,
                  patience=1,
-                 factor=0.5):
+                 factor=0.5,
+                 disturb_std=0.0):
         self.nnet = nnet
         logger.info("Network structure:\n{}".format(self.nnet))
         self.optimizer = create_optimizer(
@@ -73,6 +75,9 @@ class PITrainer(object):
         self.checkpoint = checkpoint
         self.num_spks = nnet.num_spks
         self.clip_norm = clip_norm
+        self.disturb = disturb_std
+        if self.disturb:
+            logger.info("Disturb networks with std = {}".format(disturb_std))
         if self.clip_norm:
             logger.info("Clip gradient by 2-norm {}".format(clip_norm))
         if not os.path.exists(checkpoint):
@@ -89,12 +94,16 @@ class PITrainer(object):
 
             self.optimizer.zero_grad()
 
+            if self.disturb:
+                self.nnet.disturb(self.disturb)
+
             masks = self.nnet(nnet_input)
             cur_loss = self.permutate_loss(masks, input_sizes, source_attr,
                                            target_attr)
             tot_loss += cur_loss.item()
 
             cur_loss.backward()
+
             if self.clip_norm:
                 th.nn.utils.clip_grad_norm_(self.nnet.parameters(),
                                             self.clip_norm)
@@ -177,6 +186,10 @@ class PITrainer(object):
                 refer_spect = targets_spect[t] * th.cos(
                     mixture_phase -
                     targets_phase[t]) if is_loss_with_psm else targets_spect[t]
+                # TODO: using non-negative psm(add ReLU)?
+                # refer_spect = targets_spect[t] * F.relu(
+                #     th.cos(mixture_phase - targets_phase[t])
+                # ) if is_loss_with_psm else targets_spect[t]
                 # N x T x F => N x 1
                 utt_loss = th.sum(
                     th.sum(

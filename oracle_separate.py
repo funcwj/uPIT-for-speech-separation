@@ -11,12 +11,23 @@ from dataset import SpectrogramReader
 from utils import istft
 
 
-def compute_mask(mixture, targets_list, is_psm):
-    # ideal ratio mask
-    denominator = sum([np.abs(mat) for mat in targets_list])
-    # ideal amplitude mask
-    # denominator = np.abs(mixture)
-    if not is_psm:
+def compute_mask(mixture, targets_list, mask_type):
+    """
+    Arguments:
+        mixture: STFT of mixture signal(complex result) 
+        targets_list: python list of target signal's STFT results(complex result)
+        mask_type: ["irm", "ibm", "iam", "psm"]
+    """
+    if mask_type == 'ibm':
+        max_index = np.argmax(
+            np.stack([np.abs(mat) for mat in targets_list]), 0)
+        return [max_index == s for s in range(len(targets_list))]
+
+    if mask_type == "iam":
+        denominator = np.abs(mixture)
+    else:
+        denominator = sum([np.abs(mat) for mat in targets_list])
+    if mask_type != "psm":
         masks = [np.abs(mat) / denominator for mat in targets_list]
     else:
         mixture_phase = np.angle(mixture)
@@ -35,8 +46,7 @@ def run(args):
         "window": args.window,
         "center": True
     }
-    print(
-        "Using {} Mask".format("Ratio" if not args.psm else "Phase Sensitive"))
+    print("Using Mask: {}".format(args.mask.upper()))
     mixture_reader = SpectrogramReader(
         args.mix_scp, **reader_kwargs, return_samps=True)
     targets_reader = [
@@ -58,7 +68,7 @@ def run(args):
         if not num_utts % 1000:
             print("Processed {} utterance...".format(num_utts))
         targets_list = [reader[key] for reader in targets_reader]
-        spk_masks = compute_mask(mixture, targets_list, args.psm)
+        spk_masks = compute_mask(mixture, targets_list, args.mask)
         for index, mask in enumerate(spk_masks):
             istft(
                 os.path.join(args.dump_dir, '{}.spk{}.wav'.format(
@@ -74,7 +84,7 @@ def run(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description=
-        "Command to do oracle speech separation, using ideal ratio masks(IRM) or phase sensitive masks(PSM)"
+        "Command to do oracle speech separation, using specified mask(IAM|IBM|IRM|PSM)"
     )
     parser.add_argument(
         "mix_scp",
@@ -109,9 +119,11 @@ if __name__ == '__main__':
         dest="window",
         help="Type of window function, see scipy.signal.get_window")
     parser.add_argument(
-        "--psm",
-        action="store_true",
-        default=False,
-        help="Using phase sensitive masks instead of ratio masks")
+        "--mask",
+        type=str,
+        dest="mask",
+        default="irm",
+        choices=["iam", 'irm', 'ibm', 'psm'],
+        help="Type of mask to use for speech separation")
     args = parser.parse_args()
     run(args)

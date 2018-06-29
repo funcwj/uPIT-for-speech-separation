@@ -39,7 +39,7 @@ def train(args):
     dcnnet_conf = config_dict["model"]
 
     logger.info("Training with {}".format("IRM" if reader_conf["apply_abs"]
-                                        else "PSM"))
+                                          else "PSM"))
     batch_size = loader_conf["batch_size"]
     logger.info(
         "Training in {}".format("per utterance" if batch_size == 1 else
@@ -70,6 +70,11 @@ def train(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="Command to start PIT training, configured by .yaml files")
+    parser.add_argument(
+        "--flags",
+        type=str,
+        default="",
+        help="This option is used to show what this command is runing for")
     parser.add_argument(
         "--config",
         type=str,

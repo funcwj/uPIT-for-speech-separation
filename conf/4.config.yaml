@@ -1,18 +1,15 @@
 # config for training
 
 trainer:
-  checkpoint: "./tune/2spk_pit_a"
+  checkpoint: "./tune/2spk_pit_psm_c"
   optimizer: "adam"
-  # 1e-3 => str
-  # 1.0e-3 => float
-  lr: 1.0e-3
+  lr: 1.0e-4
   momentum: 0.9
   weight_decay: 0
   clip_norm: 200
-  min_lr: 1.0e-10
-  patience: 1
+  min_lr: 1.0e-8
+  patience: 0
   factor: 0.7
-  disturb_std: 0.2
 
 model:
   num_spks: 2
@@ -28,10 +25,9 @@ spectrogram_reader:
   frame_length: 256
   window: "hann"
   transpose: true
-  # NOTE: do not apply log here
   # false => produce psm
   # true  => produce irm
-  apply_abs: true
+  apply_abs: false
 
 train_scp_conf:
   mixture: "./data/2spk/train/mix.scp"
@@ -53,4 +49,3 @@ dataloader:
   batch_size: 8
   drop_last: false
   mvn_dict: "data/cmvn.dict"
-

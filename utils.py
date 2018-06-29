@@ -8,6 +8,7 @@ import warnings
 import yaml
 
 import librosa as audio_lib
+import scipy.io.wavfile as wf
 import numpy as np
 
 MAX_INT16 = np.iinfo(np.int16).max
@@ -78,15 +79,18 @@ def istft(file,
         window=window,
         center=center,
         length=nsamps)
-    samps_norm = np.linalg.norm(samps, np.inf)
     # renorm if needed
-    if not norm:
+    if norm:
+        samps_norm = np.linalg.norm(samps, np.inf)
         samps = samps * norm / samps_norm
+    # same as MATLAB and kaldi
     samps_int16 = (samps * MAX_INT16).astype(np.int16)
     fdir = os.path.dirname(file)
     if fdir and not os.path.exists(fdir):
         os.makedirs(fdir)
-    audio_lib.output.write_wav(file, samps_int16, fs)
+    # NOTE: librosa 0.6.0 seems could not write non-float narray
+    #       so use scipy.io.wavfile instead
+    wf.write(file, fs, samps_int16)
 
 
 
