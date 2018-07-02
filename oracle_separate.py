@@ -23,10 +23,10 @@ def compute_mask(mixture, targets_list, mask_type):
             np.stack([np.abs(mat) for mat in targets_list]), 0)
         return [max_index == s for s in range(len(targets_list))]
 
-    if mask_type == "iam":
-        denominator = np.abs(mixture)
-    else:
+    if mask_type == "irm":
         denominator = sum([np.abs(mat) for mat in targets_list])
+    else:
+        denominator = np.abs(mixture)
     if mask_type != "psm":
         masks = [np.abs(mat) / denominator for mat in targets_list]
     else:

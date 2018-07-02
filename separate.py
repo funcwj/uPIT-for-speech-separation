@@ -29,20 +29,23 @@ class Separator(object):
             th.load(state_dict, map_location=self.location))
         self.nnet.eval()
 
-    def seperate(self, spectra, cmvn=None):
+    def seperate(self, spectra, cmvn=None, apply_log=True):
         """
             spectra: stft complex results T x F
             cmvn: python dict contains global mean/std
+            apply_log: using log-spectrogram or not
         """
         if not np.iscomplexobj(spectra):
             raise ValueError("Input must be matrix in complex value")
-        # compute log-magnitude spectrogram
-        log_spectra = np.log(np.maximum(np.abs(spectra), EPSILON))
+        # compute (log)-magnitude spectrogram
+        input_spectra = np.log(np.maximum(
+            np.abs(spectra), EPSILON)) if apply_log else np.abs(spectra)
         # apply cmvn or not
-        log_spectra = apply_cmvn(log_spectra, cmvn) if cmvn else log_spectra
+        input_spectra = apply_cmvn(input_spectra,
+                                   cmvn) if cmvn else input_spectra
 
         out_masks = self.nnet(
-            th.tensor(log_spectra, dtype=th.float32, device=self.location),
+            th.tensor(input_spectra, dtype=th.float32, device=self.location),
             train=False)
         spk_masks = [spk_mask.cpu().data.numpy() for spk_mask in out_masks]
         return spk_masks, [spectra * spk_mask for spk_mask in spk_masks]
@@ -50,13 +53,16 @@ class Separator(object):
 
 def run(args):
     num_bins, config_dict = parse_yaml(args.config)
+    dataloader_conf = config_dict["dataloader"]
     # Load cmvn
-    dict_mvn = config_dict["dataloader"]["mvn_dict"]
+    dict_mvn = dataloader_conf["mvn_dict"]
     if dict_mvn:
         if not os.path.exists(dict_mvn):
             raise FileNotFoundError("Could not find mvn files")
         with open(dict_mvn, "rb") as f:
             dict_mvn = pickle.load(f)
+    apply_log = dataloader_conf[
+        "apply_log"] if "apply_log" not in dataloader_conf else True
 
     dcnet = PITNet(num_bins, **config_dict["model"])
 
@@ -83,7 +89,8 @@ def run(args):
         print("Processing utterance {}".format(key))
         num_utts += 1
         norm = np.linalg.norm(samps, np.inf)
-        spk_mask, spk_spectrogram = separator.seperate(stft_mat, cmvn=dict_mvn)
+        spk_mask, spk_spectrogram = separator.seperate(
+            stft_mat, cmvn=dict_mvn, apply_log=apply_log)
 
         for index, stft_mat in enumerate(spk_spectrogram):
             istft(

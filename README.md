@@ -14,7 +14,7 @@ see [requirements.txt](requirements.txt)
 
 3. Training:
     ```shell
-    ./run_pit.py --config $conf --num-epoches 50 > $checkpoint/train.log 2>&1 &
+    ./run_pit.py --config $conf --num-epoches 100 > $checkpoint/train.log 2>&1 &
     ```
 
 4. Inference:

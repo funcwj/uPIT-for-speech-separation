@@ -183,13 +183,13 @@ class PITrainer(object):
         def loss(permute):
             loss_for_permute = []
             for s, t in enumerate(permute):
-                refer_spect = targets_spect[t] * th.cos(
-                    mixture_phase -
-                    targets_phase[t]) if is_loss_with_psm else targets_spect[t]
+                # refer_spect = targets_spect[t] * th.cos(
+                #     mixture_phase -
+                #     targets_phase[t]) if is_loss_with_psm else targets_spect[t]
                 # TODO: using non-negative psm(add ReLU)?
-                # refer_spect = targets_spect[t] * F.relu(
-                #     th.cos(mixture_phase - targets_phase[t])
-                # ) if is_loss_with_psm else targets_spect[t]
+                refer_spect = targets_spect[t] * F.relu(
+                    th.cos(mixture_phase - targets_phase[t])
+                ) if is_loss_with_psm else targets_spect[t]
                 # N x T x F => N x 1
                 utt_loss = th.sum(
                     th.sum(

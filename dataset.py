@@ -165,6 +165,7 @@ class DataLoader(object):
                  shuffle=True,
                  batch_size=16,
                  drop_last=False,
+                 apply_log=True,
                  mvn_dict=None):
         if batch_size == 1:
             raise ValueError("Now do not support perutt training")
@@ -178,6 +179,8 @@ class DataLoader(object):
             logger.info("Using cmvn dictionary from {}".format(mvn_dict))
             with open(mvn_dict, "rb") as f:
                 self.mvn_dict = pickle.load(f)
+        # use log-spectrogram instead, cause we do not apply-log in SpectrogramReader
+        self.apply_log = apply_log
 
     def __len__(self):
         remain = len(self.dataset) % self.batch_size
@@ -203,16 +206,14 @@ class DataLoader(object):
             source_attr: a dictionary with at most 2 keys: spectrogram and phase(for PSM), each contains a tensor
             target_attr: same keys like source_attr, each keys correspond to a tensor list
         """
-
-        # apply_log and cmvn, for nnet input
         # NOTE: mixture_specs may be complex or real
-        log_spectra = np.log(
-            np.maximum(
-                np.abs(mixture_specs)
-                if np.iscomplexobj(mixture_specs) else mixture_specs, EPSILON))
-
+        input_spectra = np.abs(mixture_specs) if np.iscomplexobj(
+            mixture_specs) else mixture_specs
+        # apply_log and cmvn, for nnet input
+        if self.apply_log:
+            input_spectra = np.log(np.maximum(input_spectra, EPSILON))
         if self.mvn_dict:
-            log_spectra = apply_cmvn(log_spectra, self.mvn_dict)
+            input_spectra = apply_cmvn(input_spectra, self.mvn_dict)
 
         # using dict to pack infomation needed in loss
         source_attr = {}
@@ -240,7 +241,7 @@ class DataLoader(object):
 
         return {
             "num_frames": mixture_specs.shape[0],
-            "feature": th.tensor(log_spectra, dtype=th.float32),
+            "feature": th.tensor(input_spectra, dtype=th.float32),
             "source_attr": source_attr,
             "target_attr": target_attr
         }

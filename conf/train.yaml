@@ -52,5 +52,6 @@ dataloader:
   shuffle: true
   batch_size: 8
   drop_last: false
+  apply_log: true
   mvn_dict: "data/cmvn.dict"
 
