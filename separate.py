@@ -54,6 +54,7 @@ class Separator(object):
 def run(args):
     num_bins, config_dict = parse_yaml(args.config)
     dataloader_conf = config_dict["dataloader"]
+    spectrogram_conf = config_dict["spectrogram_reader"]
     # Load cmvn
     dict_mvn = dataloader_conf["mvn_dict"]
     if dict_mvn:
@@ -61,14 +62,15 @@ def run(args):
             raise FileNotFoundError("Could not find mvn files")
         with open(dict_mvn, "rb") as f:
             dict_mvn = pickle.load(f)
+    # default: True
     apply_log = dataloader_conf[
-        "apply_log"] if "apply_log" not in dataloader_conf else True
+        "apply_log"] if "apply_log" in dataloader_conf else True
 
     dcnet = PITNet(num_bins, **config_dict["model"])
 
-    frame_length = config_dict["spectrogram_reader"]["frame_length"]
-    frame_shift = config_dict["spectrogram_reader"]["frame_shift"]
-    window = config_dict["spectrogram_reader"]["window"]
+    frame_length = spectrogram_conf["frame_length"]
+    frame_shift = spectrogram_conf["frame_shift"]
+    window = spectrogram_conf["window"]
 
     separator = Separator(dcnet, args.state_dict, cuda=args.cuda)
 

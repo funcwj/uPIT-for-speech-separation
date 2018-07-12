@@ -4,7 +4,6 @@
 
 import os
 import random
-import logging
 import pickle
 
 import numpy as np
@@ -12,16 +11,9 @@ import torch as th
 
 from torch.nn.utils.rnn import pack_sequence, pad_sequence
 
-from utils import parse_scps, stft, apply_cmvn, EPSILON
+from utils import parse_scps, stft, apply_cmvn, EPSILON, get_logger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setLevel(logging.INFO)
-formatter = logging.Formatter(
-    "%(asctime)s [%(pathname)s:%(lineno)s - %(levelname)s ] %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+logger = get_logger(__name__)
 
 
 class SpectrogramReader(object):

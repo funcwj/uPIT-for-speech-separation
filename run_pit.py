@@ -7,10 +7,11 @@ import argparse
 import os
 
 from trainer import PITrainer
-from dataset import SpectrogramReader, Dataset, DataLoader, logger
+from dataset import SpectrogramReader, Dataset, DataLoader
 from model import PITNet
-from utils import nfft, parse_yaml
+from utils import nfft, parse_yaml, get_logger
 
+logger = get_logger(__name__)
 
 def uttloader(scp_config, reader_kwargs, loader_kwargs, train=True):
     mix_reader = SpectrogramReader(scp_config['mixture'], **reader_kwargs)

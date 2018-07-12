@@ -2,10 +2,10 @@
 # coding=utf-8
 # wujian@2018
 
-
 import os
 import warnings
 import yaml
+import logging
 
 import librosa as audio_lib
 import scipy.io.wavfile as wf
@@ -93,7 +93,6 @@ def istft(file,
     wf.write(file, fs, samps_int16)
 
 
-
 def apply_cmvn(feats, cmvn_dict):
     if type(cmvn_dict) != dict:
         raise TypeError("Input must be a python dictionary")
@@ -159,3 +158,16 @@ def parse_yaml(yaml_conf):
             " correct to {}".format(num_spks))
         config_dict["model"]["num_spks"] = num_spks
     return num_bins, config_dict
+
+
+def get_logger(
+        name,
+        format_str="%(asctime)s [%(pathname)s:%(lineno)s - %(levelname)s ] %(message)s"):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter(format_str)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
